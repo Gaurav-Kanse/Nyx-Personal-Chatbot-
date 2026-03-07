@@ -19,10 +19,10 @@ class SoundDeviceAudioInterface:
             print("⚠️ Mic not detected, switching to TEXT MODE")
             print(f"Reason: {e}")
             self.available = False
-
+ 
     def start(self, input_callback):
         if not self.available:
-            raise RuntimeError("Microphone unavailable")
+            raise RuntimeError("Microphone not connected" )
 
         self.running = True
 
