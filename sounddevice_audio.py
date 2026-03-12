@@ -16,7 +16,7 @@ class SoundDeviceAudioInterface:
             )
             self.available = True
         except Exception as e:
-            print("⚠️ Mic not detected, switching to TEXT MODE")
+            print(" Mic not detected, switching to TEXT MODE")
             print(f"Reason: {e}")
             self.available = False
  

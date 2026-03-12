@@ -1,3 +1,5 @@
+from re import search
+
 from elevenlabs.conversational_ai.conversation import ClientTools
 from langchain_community.tools import DuckDuckGoSearchRun
 import os
@@ -9,7 +11,8 @@ from dotenv import load_dotenv
 
 def searchWeb(parameters):
     query = parameters.get("query")
-    results = DuckDuckGoSearchRun(query=query)
+    search = DuckDuckGoSearchRun()
+    results = search.run(query)
     return results
 
 def save_to_txt(parameters):
@@ -56,7 +59,7 @@ def generate_image(parameters):
 
     load_dotenv()
 
-    openai.api_key = "OPENAI_API_KEY" 
+    openai.api_key = os.getenv("OPENAI_API_KEY")
 
     client = openai.OpenAI()
 
