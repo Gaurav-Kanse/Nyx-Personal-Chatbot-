@@ -25,6 +25,7 @@ def text_mode_loop():
     ws = websocket.create_connection(ws_url, header=[f"xi-api-key: {api_key}"])
 
     init_msg = ws.recv()
+    print(f"[INIT] {init_msg}\n")  # temporary debug — shows what server expects
     init_data = json.loads(init_msg)
     conversation_id = init_data.get("conversation_initiation_metadata_event", {}).get("conversation_id", "unknown")
     print(f"[Session started | ID: {conversation_id}]\n")
@@ -35,36 +36,43 @@ def text_mode_loop():
             if not user_input:
                 continue
 
+            # Send the user message
             ws.send(json.dumps({"user_message": user_input}))
 
+            # Try all known VAD/turn-end signals
+            ws.send(json.dumps({"type": "user_activity", "event": "speaking_stopped"}))
+            ws.send(json.dumps({"type": "user_activity", "user_activity_event": {"activity": "text_input_end"}}))
+
             reply_parts = []
+            got_response = False
+
             while True:
                 raw = ws.recv()
                 msg = json.loads(raw)
                 msg_type = msg.get("type")
 
+                print(f"  [DEBUG] type={msg_type} | {raw[:150]}")
+
                 if msg_type == "agent_response":
                     text = msg.get("agent_response_event", {}).get("agent_response", "")
                     if text:
                         reply_parts.append(text)
+                        got_response = True
 
                 elif msg_type == "agent_response_correction":
                     text = msg.get("agent_response_correction_event", {}).get("corrected_agent_response", "")
                     if text:
                         reply_parts = [text]
+                        got_response = True
 
                 elif msg_type == "ping":
-                    # Pong back to keep session alive
                     event_id = msg.get("ping_event", {}).get("event_id")
                     ws.send(json.dumps({"type": "pong", "event_id": event_id}))
-                    # Ping always arrives after agent is done speaking — break here
-                    if reply_parts:
+                    if got_response:
                         break
 
                 elif msg_type == "interruption":
                     break
-
-                # NO break here — let it loop until audio/interruption
 
             reply = " ".join(reply_parts).strip()
             if reply:
