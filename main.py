@@ -22,13 +22,8 @@ def text_mode_loop():
     print("Type your messages below (Ctrl+C to quit):\n")
 
     ws_url = f"wss://api.elevenlabs.io/v1/convai/conversation?agent_id={agent_id}"
+    ws = websocket.create_connection(ws_url, header=[f"xi-api-key: {api_key}"])
 
-    ws = websocket.create_connection(
-        ws_url,
-        header=[f"xi-api-key: {api_key}"]
-    )
-
-    # Read initial conversation_initiation_metadata
     init_msg = ws.recv()
     init_data = json.loads(init_msg)
     conversation_id = init_data.get("conversation_initiation_metadata_event", {}).get("conversation_id", "unknown")
@@ -40,12 +35,8 @@ def text_mode_loop():
             if not user_input:
                 continue
 
-            # Send user text message
-            ws.send(json.dumps({
-                "user_message": user_input
-            }))
+            ws.send(json.dumps({"user_message": user_input}))
 
-            # Collect agent response (may come in multiple chunks)
             reply_parts = []
             while True:
                 raw = ws.recv()
@@ -58,24 +49,22 @@ def text_mode_loop():
                         reply_parts.append(text)
 
                 elif msg_type == "agent_response_correction":
-                    # Replace with corrected response
                     text = msg.get("agent_response_correction_event", {}).get("corrected_agent_response", "")
                     if text:
                         reply_parts = [text]
 
-                elif msg_type == "interruption" or msg_type == "ping":
-                    # Send pong to keep alive
-                    if msg_type == "ping":
-                        event_id = msg.get("ping_event", {}).get("event_id")
-                        ws.send(json.dumps({"type": "pong", "event_id": event_id}))
-                    continue
+                elif msg_type == "ping":
+                    # Pong back to keep session alive
+                    event_id = msg.get("ping_event", {}).get("event_id")
+                    ws.send(json.dumps({"type": "pong", "event_id": event_id}))
+                    # Ping always arrives after agent is done speaking — break here
+                    if reply_parts:
+                        break
 
-                elif msg_type == "conversation_initiation_metadata":
-                    continue
-
-                # Stop collecting once we have a full response
-                if reply_parts:
+                elif msg_type == "interruption":
                     break
+
+                # NO break here — let it loop until audio/interruption
 
             reply = " ".join(reply_parts).strip()
             if reply:
