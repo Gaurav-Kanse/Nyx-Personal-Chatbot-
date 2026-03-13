@@ -25,7 +25,6 @@ def text_mode_loop():
     ws = websocket.create_connection(ws_url, header=[f"xi-api-key: {api_key}"])
 
     init_msg = ws.recv()
-    print(f"[INIT] {init_msg}\n")  # temporary debug — shows what server expects
     init_data = json.loads(init_msg)
     conversation_id = init_data.get("conversation_initiation_metadata_event", {}).get("conversation_id", "unknown")
     print(f"[Session started | ID: {conversation_id}]\n")
@@ -36,45 +35,39 @@ def text_mode_loop():
             if not user_input:
                 continue
 
-            # Send the user message
-            ws.send(json.dumps({"user_message": user_input}))
+            ws.send(json.dumps({"type": "user_message", "text": user_input}))
+            ws.send(json.dumps({"type": "user_activity"}))
 
-            # Try all known VAD/turn-end signals
-            ws.send(json.dumps({"type": "user_activity", "event": "speaking_stopped"}))
-            ws.send(json.dumps({"type": "user_activity", "user_activity_event": {"activity": "text_input_end"}}))
-
-            reply_parts = []
-            got_response = False
+            reply = None
+            audio_count = 0
 
             while True:
                 raw = ws.recv()
                 msg = json.loads(raw)
                 msg_type = msg.get("type")
 
-                print(f"  [DEBUG] type={msg_type} | {raw[:150]}")
-
                 if msg_type == "agent_response":
-                    text = msg.get("agent_response_event", {}).get("agent_response", "")
-                    if text:
-                        reply_parts.append(text)
-                        got_response = True
+                    # Always take the latest agent_response as the full reply
+                    reply = msg.get("agent_response_event", {}).get("agent_response", "")
 
                 elif msg_type == "agent_response_correction":
-                    text = msg.get("agent_response_correction_event", {}).get("corrected_agent_response", "")
-                    if text:
-                        reply_parts = [text]
-                        got_response = True
+                    reply = msg.get("agent_response_correction_event", {}).get("corrected_agent_response", reply)
 
+                elif msg_type == "audio":
+                    audio_count += 1
+                    # Audio chunks stream in multiples — wait until we have the reply text
+                    # then break on the ping that follows
+                    
                 elif msg_type == "ping":
                     event_id = msg.get("ping_event", {}).get("event_id")
                     ws.send(json.dumps({"type": "pong", "event_id": event_id}))
-                    if got_response:
+                    # Only break if we've already received a reply
+                    if reply is not None:
                         break
 
                 elif msg_type == "interruption":
                     break
 
-            reply = " ".join(reply_parts).strip()
             if reply:
                 print(f"Nyx: {reply}\n")
 
