@@ -12,11 +12,8 @@ def main():
 
     try:
         root = ctk.CTk()
-        app = NyxUI(root)
+        app  = NyxUI(root)
         logger.info("UI initialized successfully")
-
-        app.add_message("Nyx", "Welcome to Nyx! I'm your local AI assistant.\n\nWhat can I help you with?")
-
         app.run()
 
     except Exception as e:

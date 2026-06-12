@@ -34,3 +34,5 @@ class Config:
     ENABLE_TEXT = os.getenv("ENABLE_TEXT", "true").lower() == "true"
     ENABLE_MEMORY = os.getenv("ENABLE_MEMORY", "true").lower() == "true"
     ENABLE_CODING = os.getenv("ENABLE_CODING", "false").lower() == "true"
+    ENABLE_AUTOMATION = os.getenv("ENABLE_AUTOMATION", "true").lower() == "true"
+    AUTOMATION_CONFIRM_DESTRUCTIVE = os.getenv("AUTOMATION_CONFIRM_DESTRUCTIVE", "true").lower() == "true"
