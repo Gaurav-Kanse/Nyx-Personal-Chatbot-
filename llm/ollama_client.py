@@ -12,6 +12,7 @@ class OllamaClient:
         self.config_model = Config.OLLAMA_MODEL
         self.base_url = f"{self.host}/api"
         self.active_model = self.config_model
+        self._model_resolved = False
         self.refresh_active_model()
 
     def is_available(self) -> bool:
@@ -38,6 +39,9 @@ class OllamaClient:
         Verifies if the configured model is available.
         Falls back to another local model if the configured one is not pulled.
         """
+        if self._model_resolved:
+            return self.active_model
+
         pulled = self.get_pulled_models()
         if not pulled:
             # Service offline or no models
@@ -52,11 +56,13 @@ class OllamaClient:
             model_lower = model.lower()
             if config_lower == model_lower or config_lower in model_lower or model_lower in config_lower:
                 self.active_model = model
+                self._model_resolved = True
                 logger.info(f"Configured model '{self.config_model}' is available as '{self.active_model}'.")
                 return self.active_model
 
         # Fallback to first available model
         self.active_model = pulled[0]
+        self._model_resolved = True
         logger.warning(
             f"Configured model '{self.config_model}' not found in Ollama. "
             f"Falling back to active model: '{self.active_model}'."
@@ -76,7 +82,7 @@ class OllamaClient:
             response = requests.post(
                 f"{self.base_url}/generate",
                 json=payload,
-                timeout=60
+                timeout=120
             )
 
             if response.status_code == 200:
@@ -103,7 +109,7 @@ class OllamaClient:
             response = requests.post(
                 f"{self.base_url}/chat",
                 json=payload,
-                timeout=60
+                timeout=120
             )
 
             if response.status_code == 200:

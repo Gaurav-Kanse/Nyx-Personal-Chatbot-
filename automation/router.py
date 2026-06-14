@@ -129,6 +129,24 @@ class AutomationRouter:
         Returns ToolResult if matched and executed, None if no match (→ falls to LLM).
         """
         stripped = text.strip()
+        
+        # Clean common conversational fillers at the start of the query
+        fillers = [
+            "can you please", "could you please", "please", "can you", "could you", 
+            "would you", "will you", "hey nyx", "nyx", "assistant", "just", "go ahead and"
+        ]
+        # Sort fillers by length descending so we match the longest ones first
+        fillers.sort(key=len, reverse=True)
+        
+        lower_stripped = stripped.lower()
+        for filler in fillers:
+            if lower_stripped.startswith(filler + " "):
+                stripped = stripped[len(filler) + 1:].strip()
+                break
+            elif lower_stripped == filler:
+                stripped = ""
+                break
+
         for pattern, tool_name, arg_fn in _COMPILED:
             m = pattern.match(stripped)
             if m:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import customtkinter as ctk
 import sys
 from ui.window import NyxUI
 from core.config import Config
@@ -11,8 +10,7 @@ def main():
     logger.info("=== Nyx Starting ===")
 
     try:
-        root = ctk.CTk()
-        app  = NyxUI(root)
+        app  = NyxUI(user_name="Gaurav")
         logger.info("UI initialized successfully")
         app.run()
 

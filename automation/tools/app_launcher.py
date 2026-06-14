@@ -149,6 +149,22 @@ class AppLauncherTool(AutomationTool):
         if not app_name:
             return ToolResult(False, "Please specify an app to open.")
 
+        # Check if the input itself is an existing file or directory path
+        expanded_name = os.path.expandvars(os.path.expanduser(app_name))
+        if os.path.exists(expanded_name):
+            try:
+                os.startfile(expanded_name)
+                # Track in memory DB
+                try:
+                    from memory.memory_manager import MemoryManager
+                    MemoryManager().record_app_launch(app_name, expanded_name)
+                except Exception:
+                    pass
+                return ToolResult(True, f"Opened: {app_name}", speak=True)
+            except Exception as exc:
+                logger.error(f"AppLauncher open path error: {exc}")
+                return ToolResult(False, f"Failed to open path {app_name}: {exc}")
+
         path = _resolve_executable(app_name)
 
         if not path:

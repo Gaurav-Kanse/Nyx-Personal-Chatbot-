@@ -211,9 +211,17 @@ class Assistant:
         user_name  = self.brain.get_user_name()
         memory_ctx = self.brain.build_memory_context() if Config.ENABLE_MEMORY else ""
 
-        # Include tool descriptions so LLM can also suggest automations
+        # Include tool descriptions and instructions so LLM can invoke them
         registry, _ = _get_automation()
-        tool_ctx = f"\n\n{registry.tool_summary()}" if registry else ""
+        tool_ctx = ""
+        if registry:
+            tool_ctx = (
+                f"\n\n{registry.tool_summary()}\n\n"
+                "IMPORTANT: If you need to perform any of the automation actions above to satisfy the user's request, "
+                "you MUST output ONLY the corresponding slash command (e.g., `/open notepad`, `/volume 50`, `/screenshot`, "
+                "`/file C:\\`, `/search cats`) on a single line with NO other text or explanation. "
+                "The system will execute it and show the user the result."
+            )
 
         system_prompt = "\n\n".join(filter(None, [
             SYSTEM_PROMPT,
@@ -231,6 +239,17 @@ class Assistant:
 
         # 6. LLM call
         response = self.llm.chat(self.conversation_history, system_prompt=system_prompt)
+
+        # Intercept LLM-generated slash commands
+        if response and response.strip().startswith(COMMAND_PREFIX):
+            cmd = response.strip().splitlines()[0].strip()
+            logger.info(f"LLM generated a slash command: {cmd}")
+            cmd_result = self.handle_command(cmd)
+            if cmd_result is not None:
+                self.conversation_history.append({"role": "assistant", "content": cmd_result})
+                if Config.ENABLE_MEMORY:
+                    self.brain.log_assistant_message(cmd_result)
+                return cmd_result
 
         # 7. Store assistant reply
         if response and not response.startswith("Error:"):
